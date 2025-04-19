@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.1",
+    "framer-motion": "^12.7.4",
     "groq": "^3.85.1",
     "groq-sdk": "^0.19.0",
     "groqClient": "link:@/lib/groqClient",
@@ -17,6 +18,7 @@
     "openai": "^4.95.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-github-btn": "^1.4.0",
     "react-hot-toast": "^2.5.2",
     "swagger-parser": "^10.0.3",
     "yaml": "^2.7.1",

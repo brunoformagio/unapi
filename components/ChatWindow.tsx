@@ -1,22 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApiDocStore } from "@/lib/stores/useApiDocStore";
 import { executeApiCall } from "@/lib/apiExecutor";
 import UploadBox from "./UploadBox";
+import Button from "./Button";
+import { motion } from "framer-motion";
 
 export default function ChatWindow() {
   const apiKey = useApiDocStore((state) => state.apiKey);
-  const setApiKey = useApiDocStore((state) => state.setApiKey);
   const baseUrl = useApiDocStore((state) => state.baseUrl);
-  const setBaseUrl = useApiDocStore((state) => state.setBaseUrl);
   const endpoints = useApiDocStore((state) => state.endpoints);
   const [input, setInput] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Check if configuration is set
+  const isConfigured = Boolean(endpoints && endpoints.length > 0 && baseUrl);
+
+  // Auto-scroll to the bottom when logs change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    useEffect(() => {
+    if (chatContainerRef.current) {
+      // Use requestAnimationFrame to ensure DOM updates are complete before scrolling
+      requestAnimationFrame(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [logs]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
     setLogs((prev) => [...prev, `🧑‍💻: ${input}`]);
+    setInput(""); // Clear input after sending
 
     const res = await fetch("/api/resolve-intent-groq", {
       method: "POST",
@@ -32,13 +50,13 @@ export default function ChatWindow() {
     }
 
     if (result.error) {
-      setLogs((prev) => [...prev, `🤖: ❌ ${result.error}`]);
+      setLogs((prev) => [...prev, `❌ ${result.error}`]);
       return;
     }
 
     setLogs((prev) => [
       ...prev,
-      `🤖: Chamando [${result.method}] ${result.endpoint} com:\n${JSON.stringify(result.payload, null, 2)}`,
+      `Calling [${result.method}] ${result.endpoint} with:\n${JSON.stringify(result.payload, null, 2)}`,
     ]);
 
     const response = await executeApiCall(
@@ -56,62 +74,85 @@ export default function ChatWindow() {
 
     setLogs((prev) => [
       ...prev,
-      "📤 Requisição enviada.",
-      `📥 Resposta [${response.status} ${response.statusText}]:\n${body}`,
+      "📤 Request sent.",
+      `📥 Response [${response.status} ${response.statusText}]:\n${body}`,
     ]);
-
-    setInput("");
   };
+
+  const clearLogs = () => {
+    setLogs([]);
+  };
+
+  const isUserMessage = (message: string) => message.startsWith("🧑‍💻:");
+  const isSystemMessage = (message: string) => 
+    message.startsWith("📤") || 
+    message.startsWith("📥") ||
+    !message.includes(":"); // For welcome messages
 
   return (
     <>
-      <UploadBox onWelcome={(msg) => setLogs((prev) => [...prev, msg])} />
+      <UploadBox 
+        onWelcome={(msg) => setLogs((prev) => [...prev, msg])} 
+        onConfigSaved={clearLogs} 
+      />
 
-      <div className="border p-4 rounded-xl bg-white shadow mt-4">
-        <h2 className="font-semibold mb-2">Chat com Assistente</h2>
+      <div 
+        className={`border p-4 rounded-xl bg-white shadow mt-4 ${!isConfigured ? "opacity-50" : ""}`}
+      >
+        <h2 className="font-semibold mb-2">💬 Chat with Assistant</h2>
 
-        <div className="h-64 overflow-y-auto bg-gray-100 p-2 rounded text-sm mb-2 whitespace-pre-wrap">
+        <div 
+          ref={chatContainerRef}
+          className="h-64 overflow-y-auto bg-gray-50 p-3 flex flex-col rounded text-sm mb-2 whitespace-pre-wrap space-y-2"
+        >
           {logs.map((log, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
-            <p key={i}>{log}</p>
+            <motion.div
+              // biome-ignore lint/suspicious/noArrayIndexKey: temporary key usage
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`max-w-[85%] inline-flex ${isUserMessage(log) ? "ml-auto" : isSystemMessage(log) ? "mr-auto  text-gray-500 " : "mr-auto"}`}
+            >
+              {isUserMessage(log) ? (
+                <div className="bg-blue-500 text-white p-2 px-3 rounded-2xl ">
+                  {log.replace("🧑‍💻: ", "")}
+                </div>
+              ) : isSystemMessage(log) ? (
+                <div className="bg-gray-200 p-2 px-3 rounded-2xl ">
+                {log.replace("📤: ", "")}
+                </div>
+              ) : (
+                <div className="bg-blue-100 p-2 px-3 rounded-2xl  ">
+                  <span className="font-bold">AI:</span> {log.startsWith("") ? log.replace("🤖: ", "") : log}
+                </div>
+              )}
+            </motion.div>
           ))}
-        </div>
-
-        <div className="flex gap-2 mb-2">
-          <input
-            className="border rounded p-2 w-full"
-            type="text"
-            placeholder="Cole sua Base URL aqui"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-2 mb-2">
-          <input
-            className="border rounded p-2 w-full"
-            type="password"
-            placeholder="Cole sua API Key aqui"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
         </div>
 
         <div className="flex gap-2">
           <input
             className="border rounded p-2 w-full"
             type="text"
-            placeholder="Digite sua mensagem..."
+            placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            disabled={!isConfigured}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
           />
-          <button
-            type="button"
+          <Button 
             onClick={handleSend}
-            className="bg-black text-white px-4 rounded"
+            aria-label="Send message"
+            disabled={!isConfigured}
           >
-            Enviar
-          </button>
+            Send
+          </Button>
         </div>
       </div>
     </>
