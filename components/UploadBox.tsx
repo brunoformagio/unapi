@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { parseOpenAPIDocument } from "@/lib/openapiParser";
 import { useApiDocStore } from "@/lib/stores/useApiDocStore";
+import { resetApiCache } from "@/lib/intentResolver";
 import toast from "react-hot-toast";
 import Button from "./Button";
 
@@ -64,6 +65,9 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
   };
 
   async function handleParsedDoc(text: string) {
+    // Reset API cache first to ensure we don't use outdated endpoints
+    resetApiCache();
+
     const parsed = await parseOpenAPIDocument(text);
     if (parsed.endpoints.length === 0) {
       toast.error("No endpoints found.");
@@ -93,7 +97,6 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
     }
   }
 
-
   async function handleURLSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!inputUrl.trim()) return;
@@ -121,20 +124,17 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
         </div>
       )}
       {!isConfigured && <>
-      <h2 className="font-semibold text-lg">🔧 OpenAPI docs<span className="text-xs text-gray-500 ml-2">(JSON, YAML or YML)</span></h2>
-
+      <h2 className="font-semibold text-lg">🔧 OpenAPI docs</h2>
 
       <form onSubmit={handleURLSubmit} className="flex gap-2 flex-col">
         <input
           type="text"
           className="border rounded p-2 w-full"
-          placeholder="Or paste a Swagger JSON URL e.g.: https://.../openapi.json"
+          placeholder="Paste a Swagger/OpenAPI URL here (e.g. https://petstore3.swagger.io/api/v3/openapi.json)"
           value={inputUrl}
           onChange={(e) => setInputUrl(e.target.value)}
           onBlur={handleUrlBlur}
         />
-
-      
 
       <div className="flex gap-2 ">
         <input

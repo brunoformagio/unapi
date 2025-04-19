@@ -23,7 +23,26 @@ export async function executeApiCall(
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
   
-  const url = `${normalizedBaseUrl}${normalizedEndpoint}`;
+  let url = `${normalizedBaseUrl}${normalizedEndpoint}`;
+  
+  // Handle query parameters for GET requests
+  if (method === "GET" && Object.keys(payload).length > 0) {
+    const queryParams = new URLSearchParams();
+    
+    // Add each payload property as a query parameter
+    for (const [key, value] of Object.entries(payload)) {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, String(value));
+      }
+    }
+    
+    const queryString = queryParams.toString();
+    if (queryString) {
+      // Add query string to URL, handling existing query parameters
+      url += url.includes('?') ? `&${queryString}` : `?${queryString}`;
+    }
+  }
+  
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };

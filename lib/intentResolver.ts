@@ -177,7 +177,7 @@ async function extractFieldValuesFromMessage(
       model: MODEL,
       temperature: TEMP_EXTRACTION,
       messages: [
-        { role: "system", content: "You extract field values from text and return only valid JSON." },
+        { role: "system", content: "You extract field values from text and return only valid JSON. For GET requests, recognize common patterns like 'pets available' means status=available. Be smart about extracting values even when parameters aren't explicitly mentioned but are implied by context or adjectives." },
         { role: "user", content: formattedExtractionPrompt }
       ],
     });
@@ -273,6 +273,59 @@ async function handleAPIRequest(message: string, endpoints: ParsedEndpoint[]) {
     (ep) => ep.method === method && ep.path === endpoint
   );
 
+  // Check if this is a GET request and examine required query parameters
+  if (method === "GET" && matchedEndpoint?.parameters?.length) {
+    const queryParams = matchedEndpoint.parameters.filter(
+      param => 'in' in param && param.in === 'query' && ('required' in param && param.required === true)
+    );
+    
+    // Check if any required query parameters are missing
+    const missingQueryParams: string[] = [];
+    
+    for (const param of queryParams) {
+      const paramName = 'name' in param ? param.name : '';
+      if (paramName && !(paramName in payload)) {
+        missingQueryParams.push(paramName);
+      }
+    }
+    
+    // If there are missing required query parameters, try to extract them from the message first
+    if (missingQueryParams.length > 0) {
+      // Try to extract values from the message text directly
+      const extractedFields = await extractFieldValuesFromMessage(message, missingQueryParams);
+      
+      // If we found any values, update the payload
+      if (Object.keys(extractedFields).length > 0) {
+        Object.assign(payload, extractedFields);
+        
+        // Recalculate missing params after extraction
+        const stillMissingParams = missingQueryParams.filter(param => !(param in payload));
+        
+        // If we still have missing params, ask the user
+        if (stillMissingParams.length > 0) {
+          conversationContext.lastMethod = method;
+          conversationContext.lastEndpoint = endpoint;
+          conversationContext.lastPayload = payload;
+          conversationContext.missingFields = stillMissingParams;
+          
+          return {
+            error: `I need query parameters to make this API call. Please provide values for: ${stillMissingParams.join(", ")}`
+          };
+        }
+      } else {
+        // No values extracted, ask for all missing params
+        conversationContext.lastMethod = method;
+        conversationContext.lastEndpoint = endpoint;
+        conversationContext.lastPayload = payload;
+        conversationContext.missingFields = missingQueryParams;
+        
+        return {
+          error: `I need query parameters to make this API call. Please provide values for: ${missingQueryParams.join(", ")}`
+        };
+      }
+    }
+  }
+
   // Update conversation context with current request
   updateConversationContext(method, endpoint, payload);
 
@@ -340,12 +393,25 @@ async function handleAPIRequestFailure(message: string, endpoints: ParsedEndpoin
 }
 
 function initializeAPITools(endpoints: ParsedEndpoint[]) {
+  // Categorize endpoints by resource type to help with selection
+  const endpointsByResource: Record<string, ParsedEndpoint[]> = {};
+  
+  // Extract resource types from endpoints
+  for (const ep of endpoints) {
+    const resourceType = getResourceTypeFromPath(ep.path);
+    if (!endpointsByResource[resourceType]) {
+      endpointsByResource[resourceType] = [];
+    }
+    endpointsByResource[resourceType].push(ep);
+  }
+  
   const tools: ChatCompletionTool[] = endpoints.map((ep, index) => {
     let payloadSchema: Record<string, unknown> = { type: "object", properties: {} };
     const required: string[] = [];
 
+    // Process request body schema for POST, PUT, PATCH
     if (ep.requestBodyExample && typeof ep.requestBodyExample === "object") {
-      const properties: Record<string, { type: string }> = {};
+      const properties: Record<string, { type: string; description?: string }> = {};
       for (const key of Object.keys(ep.requestBodyExample)) {
         const value = ep.requestBodyExample[key];
         const type = typeof value;
@@ -356,6 +422,7 @@ function initializeAPITools(endpoints: ParsedEndpoint[]) {
               : type === "boolean"
               ? "boolean"
               : "string",
+          description: `The ${key} of the ${getResourceTypeFromPath(ep.path)}`
         };
         required.push(key);
       }
@@ -366,12 +433,53 @@ function initializeAPITools(endpoints: ParsedEndpoint[]) {
         example: ep.requestBodyExample,
       };
     }
+    
+    // Process query parameters for GET requests
+    if (ep.method === "GET" && ep.parameters?.length) {
+      const queryParams = ep.parameters.filter(
+        param => 'in' in param && param.in === 'query'
+      );
+      
+      if (queryParams.length > 0) {
+        const properties: Record<string, { type: string; description?: string }> = {};
+        
+        for (const param of queryParams) {
+          if ('name' in param) {
+            const paramName = param.name;
+            const isRequired = 'required' in param && param.required === true;
+            
+            // Define parameter type and description
+            properties[paramName] = {
+              type: 'schema' in param && param.schema && 'type' in param.schema 
+                ? (param.schema.type as string) 
+                : 'string',
+              description: 'description' in param ? param.description : `${paramName} parameter for ${getResourceTypeFromPath(ep.path)}`
+            };
+            
+            if (isRequired) {
+              required.push(paramName);
+            }
+          }
+        }
+        
+        payloadSchema = {
+          type: "object",
+          properties,
+          required,
+        };
+      }
+    }
+
+    // Create a clear, descriptive name for the endpoint
+    const resourceType = getResourceTypeFromPath(ep.path);
+    const action = getActionFromMethod(ep.method);
+    const description = ep.summary || `${action} ${resourceType} using ${ep.method} ${ep.path}`;
 
     return {
       type: "function",
       function: {
         name: `call_endpoint_${index}`,
-        description: ep.summary || `${ep.method} ${ep.path}`,
+        description,
         parameters: {
           type: "object",
           properties: {
@@ -386,24 +494,78 @@ function initializeAPITools(endpoints: ParsedEndpoint[]) {
   });
 
   cachedTools = tools;
-  cachedSystemPrompt = `${agentSystemPrompt}\n\nEndpoints:\n${endpoints
-    .map((ep) => `- [${ep.method}] ${ep.path}`)
-    .join("\n")}`;
+  
+  // Create a more comprehensive system prompt with categorized endpoints
+  let resourceSections = '';
+  
+  for (const [resource, eps] of Object.entries(endpointsByResource)) {
+    resourceSections += `\n### ${resource.toUpperCase()} ENDPOINTS:\n`;
+    resourceSections += eps.map(ep => {
+      const action = getActionFromMethod(ep.method);
+      return `- [${ep.method}] ${ep.path} - ${ep.summary || `${action} ${resource}`}`;
+    }).join('\n');
+    resourceSections += '\n';
+  }
+  
+  cachedSystemPrompt = `${agentSystemPrompt}\n\nAvailable API Endpoints by Resource:${resourceSections}`;
 
   sessionStarted = true;
 }
 
+// Helper function to extract resource type from path
+function getResourceTypeFromPath(path: string): string {
+  // Extract meaningful resource name from the path
+  // Examples: /pet/findByStatus -> pet, /user/login -> user, /store/inventory -> store
+  const segments = path.split('/').filter(Boolean);
+  
+  if (segments.length === 0) return "api";
+  
+  // First segment is usually the resource type
+  const resourceType = segments[0].toLowerCase();
+  
+  // Clean up plural forms
+  return resourceType.endsWith('s') && !resourceType.endsWith('status')
+    ? resourceType.slice(0, -1) 
+    : resourceType;
+}
+
+// Helper function to get a descriptive action from HTTP method
+function getActionFromMethod(method: string): string {
+  switch (method.toUpperCase()) {
+    case "GET": return "Get";
+    case "POST": return "Create";
+    case "PUT": return "Update";
+    case "DELETE": return "Delete";
+    case "PATCH": return "Update";
+    default: return method;
+  }
+}
+
 function generateExampleRequest(endpoint: ParsedEndpoint): string {
+  const resourceType = getResourceTypeFromPath(endpoint.path);
+  
   switch (endpoint.method.toUpperCase()) {
     case "GET":
-      return `Get information from ${endpoint.path}`;
+      return `Get ${resourceType} information from ${endpoint.path}`;
     case "POST":
-      return `Create a new ${endpoint.path.split("/").pop()} with specific details`;
+      return `Create a new ${resourceType} with specific details`;
     case "PUT":
-      return `Update the ${endpoint.path.split("/").pop()} with new information`;
+      return `Update the ${resourceType} with new information`;
     case "DELETE":
-      return `Delete the ${endpoint.path.split("/").pop()}`;
+      return `Delete the ${resourceType}`;
     default:
       return `Perform a ${endpoint.method} operation on ${endpoint.path}`;
   }
+}
+
+/**
+ * Reset all cached data when a new API document is loaded
+ * This ensures we don't use stale endpoints from a previous API
+ */
+export function resetApiCache(): void {
+  cachedTools = null;
+  cachedSystemPrompt = null;
+  sessionStarted = false;
+  resetConversationContext();
+  console.log("API cache has been reset");
 }

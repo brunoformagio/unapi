@@ -2,7 +2,7 @@
 
 Unapi is an AI-powered API client that allows you to interact with any REST API using natural language. Simply input your OpenAPI (Swagger) documentation, and start chatting with your API.
 
-![Unapi Screenshot](https://github.com/brunoformagio/unapi/raw/main/public/screenshot.png)
+![Unapi Screenshot](https://github.com/brunoformagio/unapi/raw/main/public/preview.gif)
 
 ## Features
 
