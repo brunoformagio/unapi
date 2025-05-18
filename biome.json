@@ -1,0 +1,58 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.5.3/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "error",
+        "noUselessFragments": "error"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "useExhaustiveDependencies": "error",
+        "noUndeclaredVariables": "error"
+      },
+      "performance": {
+        "noAccumulatingSpread": "error"
+      },
+      "style": {
+        "noNegationElse": "error",
+        "useShorthandArrayType": "error",
+        "useTemplate": "error",
+        "noUnusedTemplateLiteral": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "error",
+        "noExplicitAny": "error",
+        "noConsoleLog": "warn"
+      },
+      "a11y": {
+        "useKeyWithClickEvents": "error",
+        "useAltText": "error"
+      }
+    },
+    "ignore": [".next/**", "node_modules/**", "public/**", "pnpm-lock.yaml"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentWidth": 2,
+    "indentStyle": "space",
+    "lineWidth": 100,
+    "formatWithErrors": true,
+    "ignore": [".next/**", "node_modules/**", "public/**", "pnpm-lock.yaml"]
+  },
+  "javascript": {
+    "formatter": {
+      "arrowParentheses": "always",
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingComma": "es5"
+    }
+  }
+}

@@ -1,7 +1,8 @@
+import { GitButton } from "@/components/GitButton";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import type React from "react";
 import "./globals.css";
-import { GitButton } from "@/components/GitButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,10 +26,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <GitButton/>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <GitButton />
         {children}
       </body>
     </html>

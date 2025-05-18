@@ -25,6 +25,7 @@ Unapi is an AI-powered API client that allows you to interact with any REST API 
 - **Zustand** - For state management
 - **React Hot Toast** - For notifications
 - **OpenAPI/Swagger Parser** - For parsing API documentation
+- **Biome.js** - For linting and formatting
 
 ## Setup Instructions
 
@@ -107,6 +108,17 @@ Unapi is an AI-powered API client that allows you to interact with any REST API 
 | UNAPI_TEMP_EXTRACTION | Temperature for field extraction | 0.1 |
 | UNAPI_TEMP_CHAT | Temperature for chat responses | 0.7 |
 | UNAPI_TEMP_API | Temperature for API calls | 0.2 |
+
+## Code Quality
+
+This project uses Biome.js for linting and formatting to ensure a consistent code style and quality.
+
+- Use `pnpm lint` to check for code issues
+- Use `pnpm lint:fix` to automatically fix issues
+- Use `pnpm format` to check formatting
+- Use `pnpm format:fix` to fix formatting issues
+
+For more details on code style rules and configuration, see [LINTING.md](./LINTING.md).
 
 ## License
 

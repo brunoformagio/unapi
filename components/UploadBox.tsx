@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { resetApiCache } from "@/lib/intentResolver";
 import { parseOpenAPIDocument } from "@/lib/openapiParser";
 import { useApiDocStore } from "@/lib/stores/useApiDocStore";
-import { resetApiCache } from "@/lib/intentResolver";
+import type React from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Button from "./Button";
 
@@ -35,21 +36,21 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
     try {
       // Create a URL object to safely parse the input
       const parsedUrl = new URL(url);
-      
+
       // Get the pathname
       const pathname = parsedUrl.pathname;
-      
+
       // Find the last occurrence of '/' and remove everything after it
-      const lastSlashIndex = pathname.lastIndexOf('/');
-      
+      const lastSlashIndex = pathname.lastIndexOf("/");
+
       // Create the base URL using the origin and pathname up to the last directory
-      const newBaseUrl = parsedUrl.origin + 
-        (lastSlashIndex > 0 ? pathname.substring(0, lastSlashIndex) : '');
-      
+      const newBaseUrl =
+        parsedUrl.origin + (lastSlashIndex > 0 ? pathname.substring(0, lastSlashIndex) : "");
+
       return newBaseUrl;
-    } catch (error) {
+    } catch (_error) {
       // Return empty string if URL is invalid
-      return '';
+      return "";
     }
   };
 
@@ -75,11 +76,11 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
     }
 
     setEndpoints(parsed.endpoints);
-    
+
     if (parsed.baseUrl && !baseUrl) {
       setBaseUrl(parsed.baseUrl);
     }
-    
+
     toast.success(`✅ Success! ${parsed.endpoints.length} endpoints loaded.`);
     if (onConfigSaved) {
       onConfigSaved();
@@ -100,9 +101,9 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
   async function handleURLSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!inputUrl.trim()) return;
-    
+
     setDocUrl(inputUrl);
-    
+
     setLoading(true);
     try {
       const res = await fetch(inputUrl);
@@ -123,57 +124,53 @@ export default function UploadBox({ onWelcome, onConfigSaved }: UploadBoxProps) 
           <div className="w-12 h-12 border-4 border-gray-300 border-t-black rounded-full animate-spin" />
         </div>
       )}
-      {!isConfigured && <>
-      <h2 className="font-semibold text-lg">🔧 OpenAPI docs</h2>
+      {!isConfigured && (
+        <>
+          <h2 className="font-semibold text-lg">🔧 OpenAPI docs</h2>
 
-      <form onSubmit={handleURLSubmit} className="flex gap-2 flex-col">
-        <input
-          type="text"
-          className="border rounded p-2 w-full"
-          placeholder="Paste a Swagger/OpenAPI URL here (e.g. https://petstore3.swagger.io/api/v3/openapi.json)"
-          value={inputUrl}
-          onChange={(e) => setInputUrl(e.target.value)}
-          onBlur={handleUrlBlur}
-        />
+          <form onSubmit={handleURLSubmit} className="flex gap-2 flex-col">
+            <input
+              type="text"
+              className="border rounded p-2 w-full"
+              placeholder="Paste a Swagger/OpenAPI URL here (e.g. https://petstore3.swagger.io/api/v3/openapi.json)"
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              onBlur={handleUrlBlur}
+            />
 
-      <div className="flex gap-2 ">
-        <input
-          className="border rounded p-2 w-full"
-          type="text"
-          placeholder="Paste your Base URL here"
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
-        />
-      </div>
+            <div className="flex gap-2 ">
+              <input
+                className="border rounded p-2 w-full"
+                type="text"
+                placeholder="Paste your Base URL here"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
+            </div>
 
-      <div className="flex gap-2">
-        <input
-          className="border rounded p-2 w-full"
-          type="password"
-          placeholder="Paste your Bearer Token here (optional)"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-        />
-      </div>
-      <div className="flex gap-2 mt-4">
-        <Button   
-          type="submit"
-          disabled={loading || !baseUrl || !inputUrl}
-          
-          className="w-full"
-        >
-          Save
-        </Button>
-      </div></form></>}
+            <div className="flex gap-2">
+              <input
+                className="border rounded p-2 w-full"
+                type="password"
+                placeholder="Paste your API Key here (optional)"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button type="submit" disabled={loading || !baseUrl || !inputUrl} className="w-full">
+                Save
+              </Button>
+            </div>
+          </form>
+        </>
+      )}
 
-      {isConfigured && 
-        <Button   
-          onClick={() => setIsConfigured(false)}
-          className="w-full"
-        >
+      {isConfigured && (
+        <Button onClick={() => setIsConfigured(false)} className="w-full">
           Configuration ⚙️
         </Button>
-      }
+      )}
     </div>
   );
 }

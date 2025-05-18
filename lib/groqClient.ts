@@ -1,16 +1,5 @@
 import { Groq } from "groq-sdk";
 
-// Define chat message type
-interface ChatCompletionMessageParam {
-  role: "system" | "user" | "assistant" | "function";
-  content: string | null;
-  name?: string;
-  function_call?: {
-    name: string;
-    arguments: string;
-  };
-}
-
 // We only use the API key server-side for security
 // Client-side will use our API route instead
 const apiKey = typeof window === "undefined" ? process.env.GROQ_API_KEY : undefined;
@@ -39,7 +28,7 @@ export const callGroqApi = async (
       temperature: temperature || 0.7,
     });
   }
-  
+
   // Client-side: Use our API route
   const response = await fetch("/api/groq", {
     method: "POST",
@@ -48,10 +37,10 @@ export const callGroqApi = async (
     },
     body: JSON.stringify({ messages, model, temperature }),
   });
-  
+
   if (!response.ok) {
     throw new Error("Failed to call Groq API");
   }
-  
+
   return response.json();
 };

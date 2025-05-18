@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useApiDocStore } from "@/lib/stores/useApiDocStore";
 import { executeApiCall } from "@/lib/apiExecutor";
-import UploadBox from "./UploadBox";
-import Button from "./Button";
+import { useApiDocStore } from "@/lib/stores/useApiDocStore";
 import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import Button from "./Button";
+import UploadBox from "./UploadBox";
 
 export default function ChatWindow() {
   const apiKey = useApiDocStore((state) => state.apiKey);
@@ -20,7 +20,7 @@ export default function ChatWindow() {
 
   // Auto-scroll to the bottom when logs change
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-    useEffect(() => {
+  useEffect(() => {
     if (chatContainerRef.current) {
       // Use requestAnimationFrame to ensure DOM updates are complete before scrolling
       requestAnimationFrame(() => {
@@ -56,7 +56,11 @@ export default function ChatWindow() {
 
     setLogs((prev) => [
       ...prev,
-      `Calling [${result.method}] ${result.endpoint} with:\n${JSON.stringify(result.payload, null, 2)}`,
+      `Calling [${result.method}] ${result.endpoint} with:\n${JSON.stringify(
+        result.payload,
+        null,
+        2
+      )}`,
     ]);
 
     const response = await executeApiCall(
@@ -68,9 +72,7 @@ export default function ChatWindow() {
     );
 
     const isTextResponse = typeof response.response === "string";
-    const body = isTextResponse
-      ? response.response
-      : JSON.stringify(response.response, null, 2);
+    const body = isTextResponse ? response.response : JSON.stringify(response.response, null, 2);
 
     setLogs((prev) => [
       ...prev,
@@ -84,24 +86,19 @@ export default function ChatWindow() {
   };
 
   const isUserMessage = (message: string) => message.startsWith("🧑‍💻:");
-  const isSystemMessage = (message: string) => 
-    message.startsWith("📤") || 
-    message.startsWith("📥") ||
-    !message.includes(":"); // For welcome messages
+  const isSystemMessage = (message: string) =>
+    message.startsWith("📤") || message.startsWith("📥") || !message.includes(":"); // For welcome messages
 
   return (
     <>
-      <UploadBox 
-        onWelcome={(msg) => setLogs((prev) => [...prev, msg])} 
-        onConfigSaved={clearLogs} 
-      />
+      <UploadBox onWelcome={(msg) => setLogs((prev) => [...prev, msg])} onConfigSaved={clearLogs} />
 
-      <div 
-        className={`border p-4 rounded-xl bg-white shadow mt-4 ${!isConfigured ? "opacity-50" : ""}`}
+      <div
+        className={`border p-4 rounded-xl bg-white shadow mt-4 ${isConfigured ? "" : "opacity-50"}`}
       >
         <h2 className="font-semibold mb-2">💬 Chat with Assistant</h2>
 
-        <div 
+        <div
           ref={chatContainerRef}
           className="h-64 overflow-y-auto bg-gray-50 p-3 flex flex-col rounded text-sm mb-2 whitespace-pre-wrap space-y-2"
         >
@@ -112,19 +109,24 @@ export default function ChatWindow() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`max-w-[85%] inline-flex ${isUserMessage(log) ? "ml-auto" : isSystemMessage(log) ? "mr-auto  text-gray-500 " : "mr-auto"}`}
+              className={`max-w-[85%] inline-flex ${
+                isUserMessage(log)
+                  ? "ml-auto"
+                  : isSystemMessage(log)
+                    ? "mr-auto  text-gray-500 "
+                    : "mr-auto"
+              }`}
             >
               {isUserMessage(log) ? (
                 <div className="bg-blue-500 text-white p-2 px-3 rounded-2xl ">
                   {log.replace("🧑‍💻: ", "")}
                 </div>
               ) : isSystemMessage(log) ? (
-                <div className="bg-gray-200 p-2 px-3 rounded-2xl ">
-                {log.replace("📤: ", "")}
-                </div>
+                <div className="bg-gray-200 p-2 px-3 rounded-2xl ">{log.replace("📤: ", "")}</div>
               ) : (
                 <div className="bg-blue-100 p-2 px-3 rounded-2xl  ">
-                  <span className="font-bold">AI:</span> {log.startsWith("") ? log.replace("🤖: ", "") : log}
+                  <span className="font-bold">AI:</span>{" "}
+                  {log.startsWith("") ? log.replace("🤖: ", "") : log}
                 </div>
               )}
             </motion.div>
@@ -146,11 +148,7 @@ export default function ChatWindow() {
               }
             }}
           />
-          <Button 
-            onClick={handleSend}
-            aria-label="Send message"
-            disabled={!isConfigured}
-          >
+          <Button onClick={handleSend} aria-label="Send message" disabled={!isConfigured}>
             Send
           </Button>
         </div>
