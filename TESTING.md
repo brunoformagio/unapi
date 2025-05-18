@@ -4,15 +4,14 @@ This document outlines the testing approach for the Unapi project, including how
 
 ## Testing Setup
 
-Unapi uses Jest as the testing framework with React Testing Library for component testing. The project also uses Mock Service Worker (MSW) for API mocking.
+Unapi uses Vitest as the testing framework with React Testing Library for component testing. The project also uses Mock Service Worker (MSW) for API mocking.
 
 ### Key Dependencies
 
-- **Jest**: JavaScript Testing Framework
+- **Vitest**: Fast Vite-based JavaScript Testing Framework
 - **React Testing Library**: For testing React components
 - **MSW (Mock Service Worker)**: For mocking API requests
-- **jest-environment-jsdom**: For simulating browser environment
-- **ts-jest**: For TypeScript support in Jest
+- **JSDOM**: For simulating browser environment
 
 ## Running Tests
 
@@ -47,6 +46,7 @@ Unit tests should focus on testing a single function or component in isolation. 
 Example for testing a utility function:
 
 ```typescript
+import { describe, it, expect } from 'vitest';
 import { someFunction } from '@/lib/utils';
 
 describe('someFunction', () => {
@@ -65,6 +65,7 @@ describe('someFunction', () => {
 For React components, use React Testing Library to test rendering and behavior:
 
 ```typescript
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Button from '@/components/Button';
 
@@ -75,7 +76,7 @@ describe('Button', () => {
   });
 
   it('calls onClick handler when clicked', () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<Button onClick={handleClick}>Click Me</Button>);
     fireEvent.click(screen.getByRole('button'));
     expect(handleClick).toHaveBeenCalledTimes(1);
@@ -88,6 +89,7 @@ describe('Button', () => {
 Integration tests check how multiple components or functions work together:
 
 ```typescript
+import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
@@ -104,7 +106,7 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-test('component loads data and displays it', async () => {
+it('component loads data and displays it', async () => {
   render(<SomeComponent />);
   
   // Wait for data to load and be displayed
@@ -139,9 +141,11 @@ afterAll(() => server.close());
 To mock entire modules:
 
 ```typescript
+import { vi } from 'vitest';
+
 // Mock a module
-jest.mock('@/lib/someModule', () => ({
-  someFunction: jest.fn().mockReturnValue('mocked value')
+vi.mock('@/lib/someModule', () => ({
+  someFunction: vi.fn().mockReturnValue('mocked value')
 }));
 ```
 
@@ -158,7 +162,7 @@ jest.mock('@/lib/someModule', () => ({
 
 ### Common Issues
 
-- **Jest can't find modules**: Make sure module paths are correct and the moduleNameMapper in Jest config is properly set up
+- **Vitest can't find modules**: Make sure module paths are correct and the alias configuration in vitest.config.ts is properly set up
 - **Tests timing out**: For async tests, ensure you're properly using async/await or .then() and waiting for operations to complete
 - **MSW not mocking requests**: Check if the server is properly set up and the route patterns match your API calls
 
@@ -166,5 +170,5 @@ jest.mock('@/lib/someModule', () => ({
 
 To debug tests:
 1. Use `console.log()` statements in your tests
-2. Run a single test file with `pnpm test -- path/to/file.test.ts` 
-3. Use the `--verbose` flag for more detailed output: `pnpm test -- --verbose` 
+2. Run a single test file with `pnpm test path/to/file.test.ts` 
+3. Use the `--ui` flag for the Vitest UI: `pnpm vitest --ui` 
